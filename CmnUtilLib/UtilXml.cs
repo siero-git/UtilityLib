@@ -19,6 +19,7 @@ namespace CmnUtilLib
 
             if (File.Exists(strPath) == false)
             {
+                Console.WriteLine($"[{nameof(UtilXml)}]>(LoadXml) ファイルパスが不正です");
                 return null;
             }
 
