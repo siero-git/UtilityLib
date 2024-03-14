@@ -41,16 +41,22 @@ namespace CmnUtilLib
         /// 最終保存日時
         /// </summary>
         private DateTime LastDate = DateTime.MinValue;
-        private string rootPath = string.Empty;
 
+        /// <summary>
+        /// ログ出力先
+        /// </summary>
+        private string outPath = string.Empty;
+
+        /// <summary>
+        /// コンストラクタ
+        /// </summary>
+        /// <param name="rootPath"></param>
         public UtilLog(string rootPath)
         {
-            this.rootPath = rootPath;
+            //フォルダを作成
             Directory.CreateDirectory(rootPath);
-        }
 
-        public void SetOption()
-        {
+            outPath = rootPath;
         }
 
         /// <summary>
@@ -61,7 +67,7 @@ namespace CmnUtilLib
         {
             lock (mLockObj)
             {
-                string strPath = Path.Combine(rootPath, $"{DateTime.Now.ToString("yyyyMMdd")}.{fileExt}");
+                string strPath = Path.Combine(outPath, $"{DateTime.Now.ToString("yyyyMMdd")}.{fileExt}");
 
                 using (StreamWriter sw = new StreamWriter(strPath, appedFlag, encoding))
                 {
@@ -93,7 +99,7 @@ namespace CmnUtilLib
                 DateTime delDate = new DateTime(delDateTime.Year, delDateTime.Month, delDateTime.Day);
 
                 //フォルダ内のファイルを取得
-                DirectoryInfo dirInfo = new DirectoryInfo(rootPath);
+                DirectoryInfo dirInfo = new DirectoryInfo(outPath);
                 FileInfo[] fileInfos = dirInfo.GetFiles();
 
                 //最終更新日が指定日以前のファイルをリストで取得
