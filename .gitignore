@@ -4,3 +4,5 @@
 
 /CmnUtilLib/.vs/CmnUtilLib
 /CmnUtilLib/obj
+/CmnUtilLib/bin/Debug/net8.0
+/CmnUtilLib/bin/Release/net8.0
