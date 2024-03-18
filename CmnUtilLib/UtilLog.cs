@@ -47,16 +47,19 @@ namespace CmnUtilLib
         /// </summary>
         private string outPath = string.Empty;
 
+        private string logType = string.Empty;
+
         /// <summary>
         /// コンストラクタ
         /// </summary>
         /// <param name="rootPath"></param>
-        public UtilLog(string rootPath)
+        public UtilLog(string rootPath, string? logtype = null)
         {
             //フォルダを作成
             Directory.CreateDirectory(rootPath);
 
             outPath = rootPath;
+            logType = string.IsNullOrEmpty(logtype) ? string.Empty : logtype;
         }
 
         /// <summary>
@@ -67,7 +70,11 @@ namespace CmnUtilLib
         {
             lock (mLockObj)
             {
-                string strPath = Path.Combine(outPath, $"{DateTime.Now.ToString("yyyyMMdd")}.{fileExt}");
+                string fileName = string.IsNullOrEmpty(logType) ? 
+                    $"{DateTime.Now.ToString("yyyyMMdd")}.{fileExt}" : 
+                    $"{logType}-{DateTime.Now.ToString("yyyyMMdd")}.{fileExt}";
+
+                string strPath = Path.Combine(outPath, fileName);
 
                 using (StreamWriter sw = new StreamWriter(strPath, appedFlag, encoding))
                 {
@@ -122,6 +129,37 @@ namespace CmnUtilLib
             {
                 LastDate = DateTime.Now;
             });
+        }
+    }
+
+    public static class UtilConsole
+    {
+        private static int _cursorTop = 0;
+        private static int _setLength = 0;
+
+        public static void ConsoleLog(string msg, bool topUpdateFlag = false, ConsoleColor color = ConsoleColor.White)
+        {
+            Console.ForegroundColor = color;
+            Console.SetCursorPosition(0, _cursorTop);
+
+            if(msg.Length > _setLength)
+            {
+                Console.WriteLine(msg);
+                _setLength = msg.Length;
+            }
+            else
+            {
+                string setMsg = msg.PadRight(_setLength);
+                Console.WriteLine(setMsg);
+                _setLength = setMsg.Trim().Length;
+            }
+
+
+            if (topUpdateFlag)
+            {
+                (int left, int top) = Console.GetCursorPosition();
+                _cursorTop = top;
+            }
         }
     }
 }
