@@ -3,34 +3,31 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CmnUtilLib
 {
     /// <summary>
     /// ログファイル操作
+    /// 日付をファイル名としたログファイル
     /// </summary>
     public class UtilLog
     {
         /// <summary>
         /// ファイル削除間隔(日)
         /// </summary>
-        public int delDaySpan { get; set; } = 30;
-
-        /// <summary>
-        /// ファイル追記フラグ
-        /// </summary>
-        public bool appedFlag { get; set;} = true;
+        public int optDeleteSpan { get; set; } = 30;
 
         /// <summary>
         /// エンコーディング
         /// 例:Encoding.GetEncoding("Shift_JIS")
         /// </summary>
-        public Encoding encoding { get; set; } = Encoding.UTF8;
+        public Encoding optEncoding { get; set; } = Encoding.UTF8;
 
         /// <summary>
         /// ファイル拡張子
         /// </summary>
-        public string fileExt { get; set; } = "txt";
+        public string optFileExt { get; set; } = "txt";
 
         /// <summary>
         /// 排他ロック用オブジェクト
@@ -47,7 +44,11 @@ namespace CmnUtilLib
         /// </summary>
         private string outPath = string.Empty;
 
-        private string logType = string.Empty;
+        /// <summary>
+        /// ログ種別
+        /// 例:logtype-xxx.yyy
+        /// </summary>
+        private string _logType = string.Empty;
 
         /// <summary>
         /// コンストラクタ
@@ -59,7 +60,7 @@ namespace CmnUtilLib
             Directory.CreateDirectory(rootPath);
 
             outPath = rootPath;
-            logType = string.IsNullOrEmpty(logtype) ? string.Empty : logtype;
+            _logType = string.IsNullOrEmpty(logtype) ? string.Empty : logtype;
         }
 
         /// <summary>
@@ -70,13 +71,15 @@ namespace CmnUtilLib
         {
             lock (mLockObj)
             {
-                string fileName = string.IsNullOrEmpty(logType) ? 
-                    $"{DateTime.Now.ToString("yyyyMMdd")}.{fileExt}" : 
-                    $"{logType}-{DateTime.Now.ToString("yyyyMMdd")}.{fileExt}";
+                string dateText = $"{DateTime.Now.ToString("yyyyMMdd")}";
+
+                string fileName = string.IsNullOrEmpty(_logType) ? 
+                    $"{dateText}.{optFileExt}" : 
+                    $"{_logType}-{dateText}.{optFileExt}";
 
                 string strPath = Path.Combine(outPath, fileName);
 
-                using (StreamWriter sw = new StreamWriter(strPath, appedFlag, encoding))
+                using (StreamWriter sw = new StreamWriter(strPath, true, optEncoding))
                 {
                     //時間情報を付与して出力テキストを生成
                     string strOut = $"[{DateTime.Now.ToString("HH:mm:ss")}] {strLog}";
@@ -100,7 +103,7 @@ namespace CmnUtilLib
             Task.Run(() =>
             {
                 //指定日数分マイナスした値を取得
-                DateTime delDateTime = DateTime.Now.AddDays(-1 * delDaySpan);
+                DateTime delDateTime = DateTime.Now.AddDays(-1 * optDeleteSpan);
 
                 //時間部分を0としたDateTime値を生成
                 DateTime delDate = new DateTime(delDateTime.Year, delDateTime.Month, delDateTime.Day);
@@ -128,6 +131,135 @@ namespace CmnUtilLib
             .ContinueWith((task) =>
             {
                 LastDate = DateTime.Now;
+            });
+        }
+    }
+
+    /// <summary>
+    /// ログ出力クラス
+    /// 日付フォルダにログ出力する
+    /// </summary>
+    public class UtilLogDateDir
+    {
+        /// <summary>
+        /// エンコーディング
+        /// default:UTF8
+        /// </summary>
+        public Encoding optEncode { get; set; } = Encoding.UTF8;
+
+        /// <summary>
+        /// ログ削除期間
+        /// default:30day
+        /// </summary>
+        public int optDelSpanDay { get; set; } = 30;
+
+        /// <summary>
+        /// ログファイル名
+        /// </summary>
+        private string _fileName = string.Empty;
+
+        /// <summary>
+        /// ログ出力先
+        /// </summary>
+        private string _rootPath = string.Empty;
+
+        /// <summary>
+        /// 排他ロックオブジェクト
+        /// </summary>
+        private object _lock = new object();
+
+        public UtilLogDateDir(string rootPath, string fileName)
+        {
+            //不正文字が含まれていないか確認
+            if (!UtilPath.CheckPath(rootPath))
+            {
+                throw new ArgumentException("ディレクトリに不正文字列が含まれています");
+            }
+
+            //ファイル名の不正チェック
+            if (!UtilPath.CheckName(fileName))
+            {
+                throw new ArgumentException("ファイル名に不正文字列が含まれています");
+            }
+            if (string.IsNullOrEmpty(fileName))
+            {
+                throw new ArgumentException("ファイル名が不正です");
+            }
+
+            //ログの出力先となるルートディレクトリを作成する
+            Directory.CreateDirectory(rootPath);
+
+            _fileName = fileName;
+            _rootPath = rootPath;
+        }
+
+        /// <summary>
+        /// ログ出力処理
+        /// </summary>
+        /// <param name="msg"></param>
+        public void Output(string msg)
+        {
+            lock(_lock)
+            {
+                //日付をフォーマット指定して文字列で取り出し
+                string dateText = $"{DateTime.Now:yyyyMMdd}";
+                string setPath = Path.Combine(_rootPath, dateText);
+
+                //ディレクトリ有無を確認してFlagとして保持
+                bool createFlag = Directory.Exists(setPath);
+
+                if (!createFlag)
+                {
+                    Directory.CreateDirectory(setPath);
+                }
+
+                string strPath = Path.Combine(_rootPath, _fileName);
+
+                using (StreamWriter sw = new StreamWriter(strPath, true, optEncode))
+                {
+                    //時間情報を付与して出力テキストを生成
+                    string strOut = $"[{DateTime.Now:HH:mm:ss}] {msg}";
+
+                    sw.WriteLine(strOut);
+                }
+
+                //ディレクトリを作成していたら削除処理を実施
+                if(createFlag)
+                {
+                    DeleteLog();
+                }
+            }
+        }
+
+        private void DeleteLog()
+        {
+            Task.Run(() =>
+            {
+                //指定日数分マイナスした値を取得
+                DateTime delDateTime = DateTime.Now.AddDays(-1 * optDelSpanDay);
+
+                //時間部分を0としたDateTime値を生成
+                DateTime delDate = new DateTime(delDateTime.Year, delDateTime.Month, delDateTime.Day);
+
+                //フォルダ内のファイルを取得
+                DirectoryInfo dirInfo = new DirectoryInfo(_rootPath);
+                var logDirs = dirInfo.GetDirectories();
+
+                //作成日が指定日以前のディレクトリを列挙
+                var delInfos = logDirs.Where(x => x.CreationTime <= delDate);
+
+                //対象のディレクトリを削除
+                foreach (var item in delInfos)
+                {
+                    try
+                    {
+                        Directory.Delete(item.FullName, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        Output($"[UtilLogDate] ファイル削除例外 msg:{ex.Message}");
+                    }
+                }
             });
         }
     }
